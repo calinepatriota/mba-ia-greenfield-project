@@ -69,10 +69,11 @@ export class VideosService {
 
         return { videoId: video.id, publicId, uploadUrl, storageKey };
       } catch (err) {
+        const pgErr = err as { code?: string; detail?: string };
         if (
           err instanceof QueryFailedError &&
-          (err as any).code === PG_UNIQUE_VIOLATION &&
-          (err as any).detail?.includes('public_id')
+          pgErr.code === PG_UNIQUE_VIOLATION &&
+          pgErr.detail?.includes('public_id')
         ) {
           continue;
         }

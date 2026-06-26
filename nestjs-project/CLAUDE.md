@@ -149,6 +149,59 @@ NestJS with standard module structure. Source lives in `src/`, compiled output i
 - Each domain feature gets its own module (e.g., `UsersModule`, `VideosModule`) registered in `AppModule`
 - Controllers handle HTTP routing; Services hold business logic; both are scoped to their module
 
+### Phase 03 — Video Upload & Processing
+
+**Modules and files added:**
+
+| Path | Purpose |
+|------|---------|
+| `src/videos/` | `VideosModule` — video lifecycle management |
+| `src/storage/` | `StorageModule` — MinIO/S3 presigned URL generation |
+| `src/worker/` | Standalone NestJS app (`main.ts`) that runs the BullMQ worker |
+| `src/config/storage.config.ts` | Typed config (`registerAs('storage', ...)`) for MinIO credentials |
+| `docker-compose.yml` | Added `minio` and `redis` services |
+
+**Video lifecycle (status transitions):**
+
+```
+draft → processing → ready
+              └──── error   (on final BullMQ retry)
+```
+
+**REST endpoints (`/videos`):**
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/videos` | JWT required | Initiate upload — returns presigned PUT URL |
+| `POST` | `/videos/:id/upload-complete` | JWT required | Signal upload finished, enqueues processing job |
+| `GET` | `/videos/:publicId` | Public | Get video metadata (only `ready` videos) |
+| `GET` | `/videos/:publicId/stream` | Public | Presigned GET URL for streaming |
+| `GET` | `/videos/:publicId/download` | Public | Presigned GET URL with `attachment` disposition |
+| `GET` | `/videos/my/videos` | JWT required | List authenticated user's videos |
+
+**Storage pattern:** client uploads directly to MinIO via a presigned PUT URL (7 200 s TTL). The API never receives the raw video bytes. After the upload, the client calls `/upload-complete`, which verifies the object exists in MinIO, transitions status to `processing`, and enqueues a BullMQ job.
+
+**Worker (`src/worker/`):** standalone NestJS app (`worker` entry in `nest-cli.json`). Consumes `video-processing` queue. For each job: downloads original from MinIO → extracts metadata with `ffprobe` → generates thumbnail with `ffmpeg` → uploads thumbnail back to MinIO → marks video `ready`. On final retry failure, marks video `error`.
+
+**BullMQ queue name:** `video-processing`. Job name: `process`. Retry policy: 3 attempts, exponential backoff (5 000 ms base).
+
+**Public ID:** 12-char URL-safe string from `nanoid/customAlphabet` (alphanumeric). Stored in `videos.public_id` with a unique index.
+
+**`fluent-ffmpeg` import:** must use `import ffmpeg = require('fluent-ffmpeg')` (CJS `export =` style) with `// eslint-disable-next-line @typescript-eslint/no-require-imports` because the package uses `module.exports =` and does not have a default ES export.
+
+**New required env vars (`.env`):**
+
+```
+STORAGE_ENDPOINT=http://minio:9000
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=minioadmin
+STORAGE_SECRET_ACCESS_KEY=minioadmin123
+STORAGE_BUCKET=streamtube-videos
+STORAGE_PUBLIC_ENDPOINT=http://localhost:9000
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
 ## Code Conventions
 
 - **TypeScript:** `nodenext` module resolution, `ES2023` target, `strictNullChecks` on, `noImplicitAny` off

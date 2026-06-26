@@ -102,7 +102,9 @@ describe('VideosService', () => {
 
       expect(result.uploadUrl).toBe('http://minio/presigned-url');
       expect(result.videoId).toBe(video.id);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(videoRepo.save).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(storageService.generateUploadUrl).toHaveBeenCalled();
     });
   });
@@ -123,6 +125,7 @@ describe('VideosService', () => {
       await service.notifyUploadComplete('video-uuid', 'user-id-1');
 
       expect(video.status).toBe(VideoStatus.PROCESSING);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(videoQueue.add).toHaveBeenCalledWith(
         'process',
         expect.objectContaining({ videoId: video.id }),
@@ -167,6 +170,7 @@ describe('VideosService', () => {
       channelsService.findChannelByUserId.mockResolvedValue(channel);
 
       await service.notifyUploadComplete('video-uuid', 'user-id-1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(videoQueue.add).not.toHaveBeenCalled();
     });
   });
@@ -194,6 +198,7 @@ describe('VideosService', () => {
       storageService.generateDownloadUrl.mockResolvedValue('http://stream-url');
       const url = await service.getStreamUrl('abc123test01');
       expect(url).toBe('http://stream-url');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(storageService.generateDownloadUrl).toHaveBeenCalledWith(
         video.storage_key,
         3600,
@@ -210,6 +215,7 @@ describe('VideosService', () => {
       );
       const url = await service.getDownloadUrl('abc123test01');
       expect(url).toBe('http://download-url');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(storageService.generateDownloadUrl).toHaveBeenCalledWith(
         video.storage_key,
         3600,

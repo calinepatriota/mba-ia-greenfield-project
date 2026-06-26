@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import ffmpeg = require('fluent-ffmpeg');
 import * as fs from 'fs';
 import * as os from 'os';
@@ -128,7 +129,7 @@ export class VideoProcessor extends WorkerHost {
   private extractMetadata(filePath: string): Promise<ffmpeg.FfprobeData> {
     return new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, data) => {
-        if (err) reject(err);
+        if (err) reject(err instanceof Error ? err : new Error(String(err)));
         else resolve(data);
       });
     });

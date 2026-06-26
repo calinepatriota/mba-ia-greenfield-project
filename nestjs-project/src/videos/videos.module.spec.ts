@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { VideosModule } from './videos.module';
 import { VideosService } from './videos.service';
 import { Video } from './entities/video.entity';
 import { StorageService } from '../storage/storage.service';

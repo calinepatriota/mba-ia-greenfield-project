@@ -52,14 +52,11 @@ describe('Videos (e2e)', () => {
       .post('/auth/register')
       .send({ email: 'videoe2e@test.com', password: 'password123' });
 
-    // Confirm the user
-    const vtRepo = dataSource.query(
+    // Confirm the user directly via DB
+    const rows = await dataSource.query<{ token_hash: string }[]>(
       `SELECT token_hash FROM verification_tokens WHERE type = 'email_confirmation' LIMIT 1`,
     );
-    const rows = await vtRepo;
     if (rows.length > 0) {
-      // We need the raw token — use a workaround via direct DB insert of a known hash
-      // Instead, directly set is_confirmed = true
       await dataSource.query(
         `UPDATE users SET is_confirmed = true WHERE email = 'videoe2e@test.com'`,
       );
@@ -69,7 +66,7 @@ describe('Videos (e2e)', () => {
       .post('/auth/login')
       .send({ email: 'videoe2e@test.com', password: 'password123' });
 
-    accessToken = loginRes.body.access_token;
+    accessToken = (loginRes.body as { access_token: string }).access_token;
   });
 
   describe('POST /videos', () => {
@@ -87,10 +84,16 @@ describe('Videos (e2e)', () => {
         .send({ title: 'My Video', contentType: 'video/mp4' })
         .expect(201);
 
-      expect(res.body.videoId).toBeDefined();
-      expect(res.body.publicId).toHaveLength(12);
-      expect(res.body.uploadUrl).toMatch(/^https?:\/\//);
-      expect(res.body.storageKey).toMatch(/^videos\//);
+      const body = res.body as {
+        videoId: string;
+        publicId: string;
+        uploadUrl: string;
+        storageKey: string;
+      };
+      expect(body.videoId).toBeDefined();
+      expect(body.publicId).toHaveLength(12);
+      expect(body.uploadUrl).toMatch(/^https?:\/\//);
+      expect(body.storageKey).toMatch(/^videos\//);
     });
 
     it('returns 400 for missing title', async () => {
@@ -100,7 +103,7 @@ describe('Videos (e2e)', () => {
         .send({ contentType: 'video/mp4' })
         .expect(400);
 
-      expect(res.body.error).toBe('VALIDATION_ERROR');
+      expect((res.body as { error: string }).error).toBe('VALIDATION_ERROR');
     });
 
     it('returns 400 for missing contentType', async () => {
@@ -110,7 +113,7 @@ describe('Videos (e2e)', () => {
         .send({ title: 'Test Video' })
         .expect(400);
 
-      expect(res.body.error).toBe('VALIDATION_ERROR');
+      expect((res.body as { error: string }).error).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -127,7 +130,7 @@ describe('Videos (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
 
-      expect(res.body.error).toBe('VIDEO_NOT_FOUND');
+      expect((res.body as { error: string }).error).toBe('VIDEO_NOT_FOUND');
     });
 
     it('returns 422 when file not yet uploaded to storage', async () => {
@@ -137,12 +140,15 @@ describe('Videos (e2e)', () => {
         .send({ title: 'Upload Test', contentType: 'video/mp4' })
         .expect(201);
 
+      const { videoId } = createRes.body as { videoId: string };
       const res = await request(app.getHttpServer())
-        .post(`/videos/${createRes.body.videoId}/upload-complete`)
+        .post(`/videos/${videoId}/upload-complete`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(422);
 
-      expect(res.body.error).toBe('VIDEO_UPLOAD_INCOMPLETE');
+      expect((res.body as { error: string }).error).toBe(
+        'VIDEO_UPLOAD_INCOMPLETE',
+      );
     });
   });
 
@@ -152,7 +158,7 @@ describe('Videos (e2e)', () => {
         .get('/videos/nonexistent1')
         .expect(404);
 
-      expect(res.body.error).toBe('VIDEO_NOT_FOUND');
+      expect((res.body as { error: string }).error).toBe('VIDEO_NOT_FOUND');
     });
   });
 
@@ -168,7 +174,7 @@ describe('Videos (e2e)', () => {
         .expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body).toHaveLength(0);
+      expect((res.body as unknown[]).length).toBe(0);
     });
 
     it('returns created videos in list', async () => {
@@ -183,9 +189,10 @@ describe('Videos (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(res.body).toHaveLength(1);
-      expect(res.body[0].title).toBe('My Video');
-      expect(res.body[0].status).toBe('draft');
+      const videos = res.body as { title: string; status: string }[];
+      expect(videos).toHaveLength(1);
+      expect(videos[0].title).toBe('My Video');
+      expect(videos[0].status).toBe('draft');
     });
   });
 });

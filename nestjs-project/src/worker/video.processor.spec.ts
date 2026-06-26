@@ -103,6 +103,7 @@ describe('VideoProcessor', () => {
     await expect(processor.process(job as any)).rejects.toThrow('Retry');
 
     expect(video.status).not.toBe(VideoStatus.ERROR);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(videoRepo.save).not.toHaveBeenCalled();
   });
 });

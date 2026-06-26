@@ -1,7 +1,10 @@
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Video } from './video.entity';
 import { VideoStatus } from '../enums/video-status.enum';
-import { cleanAllTables, createTestDataSource } from '../../test/create-test-data-source';
+import {
+  cleanAllTables,
+  createTestDataSource,
+} from '../../test/create-test-data-source';
 import { Channel } from '../../channels/entities/channel.entity';
 import { User } from '../../users/entities/user.entity';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
