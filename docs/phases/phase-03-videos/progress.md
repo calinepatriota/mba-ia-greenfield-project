@@ -1,44 +1,44 @@
 # phase-03-videos — Progress
 
-**Status:** in progress
-**SIs:** 0/8 completed
+**Status:** completed
+**SIs:** 8/8 completed
 
 ### SI-03.1 — Dependencies, Config Namespaces, and Docker Compose
-- **Status:** pending
-- **Tests:** no tests
-- **Observations:** —
+- **Status:** completed
+- **Tests:** no tests (infra setup)
+- **Observations:** `@nestjs/bullmq`, `bullmq`, `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `nanoid@^3`, `fluent-ffmpeg`, `@types/fluent-ffmpeg` installed. `storage.config.ts` and `queue.config.ts` created with `registerAs` pattern. `compose.yaml` extended with `minio`, `minio-init`, `redis`, and `video-worker` services. `Dockerfile.worker` created (node:22-bookworm-slim + apt-get ffmpeg). New env vars (`STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, etc.) added to Joi validation schema and `.env`.
 
 ### SI-03.2 — Video Entity, Migration, and VideosModule
-- **Status:** pending
-- **Tests:** pending
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `src/videos/entities/video.entity.integration-spec.ts` — green; `src/videos/videos.module.spec.ts` — green
+- **Observations:** `Video` entity created with all columns (id, public_id, channel_id, title, status, storage_key, thumbnail_key, duration, metadata, error_message, created_at, updated_at). `VideoStatus` enum. Migration `<timestamp>-CreateVideos.ts` generated and applied. `VideosModule` registered in `AppModule`.
 
 ### SI-03.3 — StorageModule and StorageService
-- **Status:** pending
-- **Tests:** pending
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `src/storage/storage.service.spec.ts` — green (unit, mocked S3Client)
+- **Observations:** `StorageService` wraps `S3Client` with `forcePathStyle: true` for MinIO. Methods: `generateUploadUrl` (presigned PUT), `generateDownloadUrl` (presigned GET, optional Content-Disposition), `objectExists` (HeadObjectCommand), `deleteObject`. `StorageModule` is global.
 
 ### SI-03.4 — Video Upload Initiation (POST /videos)
-- **Status:** pending
-- **Tests:** pending
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `src/videos/videos.service.spec.ts` — green (initiateUpload); `test/videos.e2e-spec.ts` POST /videos cases — green
+- **Observations:** `VideosService.initiateUpload` finds channel, generates nanoid `public_id` (retry up to 5 on unique collision), builds `storageKey`, generates presigned PUT URL (7200s TTL), persists video as DRAFT. `VideosController POST /` returns 201 with `{ videoId, publicId, uploadUrl, storageKey }`. `ChannelsService.findChannelByUserId` added. `ChannelNotFoundException` created.
 
 ### SI-03.5 — Upload Complete Notification and Job Publishing
-- **Status:** pending
-- **Tests:** pending
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `src/videos/videos.service.spec.ts` — green (notifyUploadComplete all cases); `test/videos.e2e-spec.ts` POST /videos/:id/upload-complete — green
+- **Observations:** `VideosService.notifyUploadComplete` validates ownership, checks `objectExists`, transitions status to PROCESSING, publishes BullMQ job (`attempts: 3, backoff: exponential 5s`). Idempotent when already PROCESSING/READY. Exceptions: `VideoNotFoundException` (404), `VideoNotOwnedException` (403), `VideoUploadIncompleteException` (422). Controller returns 204.
 
 ### SI-03.6 — Video Worker (FFmpeg Processing)
-- **Status:** pending
-- **Tests:** pending
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `src/worker/video.processor.spec.ts` — green (unit: error on final attempt sets ERROR status; non-final attempt does not set status)
+- **Observations:** `src/worker/main.ts` — NestJS standalone app (`createApplicationContext`). `src/worker/worker.module.ts` — imports ConfigModule, TypeOrmModule, BullMQModule, StorageModule, VideosModule. `VideoProcessor` extends `WorkerHost`: downloads from S3 via `GetObjectCommand` + pipe to WriteStream, runs ffprobe for metadata, runs ffmpeg for thumbnail at 10% duration, uploads thumbnail via `PutObjectCommand`, marks video READY. On final retry failure, marks ERROR. Temp files cleaned in `finally`. fluent-ffmpeg imported with `import ffmpeg = require('fluent-ffmpeg')` (CJS export= style).
 
 ### SI-03.7 — Video Metadata, Streaming, and Download Endpoints
-- **Status:** pending
-- **Tests:** pending
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `src/videos/videos.service.spec.ts` — green (findByPublicId, getStreamUrl, getDownloadUrl); `test/videos.e2e-spec.ts` GET /videos cases — green
+- **Observations:** `findByPublicId` returns only READY videos. `getVideoResponse` builds DTO with thumbnailUrl. `getStreamUrl` / `getDownloadUrl` return presigned GET URLs (3600s TTL). `GET /videos/my/videos` returns all statuses for authenticated user's channel. Controller routes: `@Public() GET :publicId`, `@Public() GET :publicId/stream`, `@Public() GET :publicId/download`, `GET my/videos` (authenticated).
 
 ### SI-03.8 — CLAUDE.md Update and Definition of Done
-- **Status:** pending
-- **Tests:** n/a
-- **Observations:** —
+- **Status:** completed
+- **Tests:** `npx tsc --noEmit` exit 0 ✓; `npm run lint` (Phase 03 files: 0 errors) ✓; unit tests 13/13 ✓; E2E suite passes inside container ✓
+- **Observations:** `nestjs-project/CLAUDE.md` updated with Phase 03 architecture section (endpoints, lifecycle, worker, storage pattern, new env vars). Root `CLAUDE.md` updated with BullMQ+Redis queue decision and video-worker container. Pre-existing Phase 02 lint errors in `auth.service.spec.ts` / `auth.e2e-spec.ts` are not Phase 03 responsibility and existed before this phase.

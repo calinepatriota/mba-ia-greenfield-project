@@ -19,12 +19,24 @@ This is a monorepo with two main areas:
 See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 
 - **Frontend** (Next.js) → calls API via REST, streams from Object Storage
-- **API** (Nest.js) → business rules, auth, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
-- **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
+- **API** (Nest.js) → business rules, auth, reads/writes DB, publishes upload presigned URLs and queue jobs, sends emails
+- **Video Worker** (FFmpeg) → NestJS standalone app (`src/worker/`); consumes `video-processing` BullMQ jobs, runs FFmpeg, updates DB and uploads thumbnail to MinIO
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
-- **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
-- **Email Service** (SMTP) → account confirmation and password recovery
+- **Object Storage** (MinIO / S3-compatible) → video files and thumbnails; client uploads directly via presigned PUT URL (API never handles file bytes)
+- **Message Queue** (BullMQ + Redis) → `video-processing` queue; producer: API; consumer: video-worker container
+- **Email Service** (SMTP / Mailpit in dev) → account confirmation and password recovery
+
+**Phase 03 Docker Compose services (in `nestjs-project/compose.yaml`):**
+
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| `nestjs-api` | local build | 3000 | Backend API |
+| `video-worker` | local build (Dockerfile.worker) | — | FFmpeg video processing worker |
+| `db` | postgres:17 | 5432 | PostgreSQL database |
+| `minio` | minio/minio | 9000 / 9001 | Object storage (API / Console) |
+| `minio-init` | minio/mc | — | One-shot: creates bucket on startup |
+| `redis` | redis:7-alpine | 6379 | BullMQ queue backend |
+| `mailpit` | axllent/mailpit | 1025 / 8025 | SMTP trap (dev email)
 
 ## Docker Networking
 

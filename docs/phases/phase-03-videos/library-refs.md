@@ -129,12 +129,15 @@ const publicId = generatePublicId() // e.g., 'dQw4w9WgXcQ3'
 **Key APIs:**
 
 ```ts
-import * as ffmpeg from 'fluent-ffmpeg'
+// IMPORTANT: fluent-ffmpeg uses `module.exports =` (CJS export= style).
+// Must use require-style import, not `import * as ffmpeg`.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import ffmpeg = require('fluent-ffmpeg')
 
 // Extract metadata via ffprobe
 const metadata = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
   ffmpeg.ffprobe(filePath, (err, data) => {
-    if (err) reject(err)
+    if (err) reject(err instanceof Error ? err : new Error(String(err)))
     else resolve(data)
   })
 })
@@ -147,13 +150,15 @@ const height = videoStream?.height
 const bitrate = Number(metadata.format.bit_rate) // bits/s
 
 // Generate thumbnail at 10% of duration
+// Note: .on('end', resolve) would be a type mismatch — fluent-ffmpeg passes (stdout, stderr).
+// Wrap with () => resolve() to satisfy the void signature.
 await new Promise<void>((resolve, reject) => {
   ffmpeg(filePath)
     .seekInput(duration * 0.1)
     .frames(1)
     .output(thumbnailPath)
-    .on('end', resolve)
-    .on('error', reject)
+    .on('end', () => resolve())
+    .on('error', (err: Error) => reject(err))
     .run()
 })
 ```

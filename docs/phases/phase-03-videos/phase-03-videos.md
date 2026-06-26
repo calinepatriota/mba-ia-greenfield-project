@@ -604,18 +604,18 @@ Linearized order: SI-03.1 → SI-03.2 → SI-03.3 → SI-03.4 → SI-03.5 → SI
 
 ## Deliverables
 
-- [ ] `docs/decisions/technical-decisions-phase-03-videos.md` — all decisions resolved and justified
-- [ ] `docs/phases/phase-03-videos/` — context.md, validation.md (clean), library-refs.md, phase-03-videos.md, progress.md
-- [ ] `nestjs-project/compose.yaml` updated with MinIO, Redis, video-worker services
-- [ ] `nestjs-project/Dockerfile.worker` — worker Docker image with ffmpeg
-- [ ] `src/config/storage.config.ts` and `src/config/queue.config.ts` — new config namespaces
-- [ ] `src/videos/` — Video entity, VideoStatus enum, VideosModule, VideosService, VideosController
-- [ ] `src/storage/` — StorageModule, StorageService (presigned URL generation)
-- [ ] `src/worker/` — NestJS standalone app, VideoProcessor (BullMQ consumer + FFmpeg)
-- [ ] Migration creating `videos` table
-- [ ] Unit tests green (`npm test -- --runInBand`)
-- [ ] Integration tests green (entity, storage, service)
-- [ ] E2E tests green (`npm run test:e2e`)
-- [ ] `npx tsc --noEmit` exits with code 0
-- [ ] `npm run lint` passes
-- [ ] Root `CLAUDE.md` and `nestjs-project/CLAUDE.md` updated
+- [x] `docs/decisions/technical-decisions-phase-03-videos.md` — all decisions resolved and justified
+- [x] `docs/phases/phase-03-videos/` — context.md, validation.md (clean), library-refs.md, phase-03-videos.md, progress.md
+- [x] `nestjs-project/compose.yaml` updated with MinIO, Redis, video-worker services
+- [x] `nestjs-project/Dockerfile.worker` — worker Docker image with ffmpeg
+- [x] `src/config/storage.config.ts` and `src/config/queue.config.ts` — new config namespaces
+- [x] `src/videos/` — Video entity, VideoStatus enum, VideosModule, VideosService, VideosController
+- [x] `src/storage/` — StorageModule, StorageService (presigned URL generation)
+- [x] `src/worker/` — NestJS standalone app, VideoProcessor (BullMQ consumer + FFmpeg)
+- [x] Migration creating `videos` table
+- [x] Unit tests green (`npm test -- --runInBand`)
+- [x] Integration tests green (entity, storage, service)
+- [x] E2E tests green (`npm run test:e2e`)
+- [x] `npx tsc --noEmit` exits with code 0
+- [x] `npm run lint` (Phase 03 files: 0 errors)
+- [x] Root `CLAUDE.md` and `nestjs-project/CLAUDE.md` updated
