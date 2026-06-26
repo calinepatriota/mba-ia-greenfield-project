@@ -5,11 +5,13 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StorageModule } from '../storage/storage.module';
 import { Video } from '../videos/entities/video.entity';
+import { Channel } from '../channels/entities/channel.entity';
+import { User } from '../users/entities/user.entity';
 import appConfig from '../config/app.config';
 import databaseConfig from '../config/database.config';
 import queueConfig from '../config/queue.config';
 import storageConfig from '../config/storage.config';
-import { envValidationSchema } from '../config/env.validation';
+import { workerEnvValidationSchema } from '../config/worker-env.validation';
 import { VideoProcessor } from './video.processor';
 
 @Module({
@@ -17,7 +19,7 @@ import { VideoProcessor } from './video.processor';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, databaseConfig, queueConfig, storageConfig],
-      validationSchema: envValidationSchema,
+      validationSchema: workerEnvValidationSchema,
       validationOptions: { allowUnknown: true, abortEarly: false },
     }),
     TypeOrmModule.forRootAsync({
@@ -30,7 +32,9 @@ import { VideoProcessor } from './video.processor';
         username: dbConfig.username,
         password: dbConfig.password,
         database: dbConfig.name,
-        entities: [Video],
+        // Video relates to Channel which relates to User — all three entities
+        // in the relation graph must be registered for metadata to build.
+        entities: [Video, Channel, User],
         synchronize: false,
       }),
     }),

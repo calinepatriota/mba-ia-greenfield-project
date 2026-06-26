@@ -10,8 +10,8 @@
 
 ### SI-03.2 — Video Entity, Migration, and VideosModule
 - **Status:** completed
-- **Tests:** `src/videos/entities/video.entity.integration-spec.ts` — green; `src/videos/videos.module.spec.ts` — green
-- **Observations:** `Video` entity created with all columns (id, public_id, channel_id, title, status, storage_key, thumbnail_key, duration, metadata, error_message, created_at, updated_at). `VideoStatus` enum. Migration `<timestamp>-CreateVideos.ts` generated and applied. `VideosModule` registered in `AppModule`.
+- **Tests:** `src/videos/entities/video.entity.integration-spec.ts` — green; `src/videos/videos.module.spec.ts` — green; `src/database/migrations.integration-spec.ts` — green (extended to run `CreateVideos`: asserts the `videos` table is created, that it has a FK to `channels`, and that the down migration drops it).
+- **Observations:** `Video` entity created with all columns (id, public_id, channel_id, title, status, storage_key, thumbnail_key, duration, metadata, error_message, created_at, updated_at). `VideoStatus` enum. Migration `1782482885893-CreateVideos.ts` generated and applied (enum `videos_status_enum`, unique `public_id`, FK `channel_id` → `channels` ON DELETE CASCADE). `VideosModule` registered in `AppModule`.
 
 ### SI-03.3 — StorageModule and StorageService
 - **Status:** completed
@@ -30,8 +30,9 @@
 
 ### SI-03.6 — Video Worker (FFmpeg Processing)
 - **Status:** completed
-- **Tests:** `src/worker/video.processor.spec.ts` — green (unit: error on final attempt sets ERROR status; non-final attempt does not set status)
-- **Observations:** `src/worker/main.ts` — NestJS standalone app (`createApplicationContext`). `src/worker/worker.module.ts` — imports ConfigModule, TypeOrmModule, BullMQModule, StorageModule, VideosModule. `VideoProcessor` extends `WorkerHost`: downloads from S3 via `GetObjectCommand` + pipe to WriteStream, runs ffprobe for metadata, runs ffmpeg for thumbnail at 10% duration, uploads thumbnail via `PutObjectCommand`, marks video READY. On final retry failure, marks ERROR. Temp files cleaned in `finally`. fluent-ffmpeg imported with `import ffmpeg = require('fluent-ffmpeg')` (CJS export= style).
+- **Tests:** `src/worker/video.processor.spec.ts` — green (unit: error on final attempt sets ERROR status; non-final attempt does not set status). `src/worker/video.processor.integration-spec.ts` — green (full pipeline against real MinIO + PostgreSQL: generates a real 1s video with ffmpeg, uploads to MinIO, runs `process()`, asserts status READY + duration > 0 + metadata {width,height} + thumbnail uploaded to MinIO).
+- **Observations:** `src/worker/main.ts` — NestJS standalone app (`createApplicationContext`). `src/worker/worker.module.ts` — imports ConfigModule, TypeOrmModule (`entities: [Video, Channel, User]` — the full relation graph must be registered or TypeORM fails to build metadata for `Video#channel`), BullModule, StorageModule. `VideoProcessor` extends `WorkerHost`: downloads from S3 via `GetObjectCommand` + pipe to WriteStream, runs ffprobe for metadata, runs ffmpeg for thumbnail at 10% duration, uploads thumbnail via `PutObjectCommand`, marks video READY. On final retry failure, marks ERROR. Temp files cleaned in `finally`. fluent-ffmpeg imported with `import ffmpeg = require('fluent-ffmpeg')` (CJS export= style).
+- **Worker boot:** the worker validates a **dedicated** schema (`src/config/worker-env.validation.ts`) covering only DB/QUEUE/STORAGE — reusing the full API schema would crash the worker on boot because it does not receive JWT/MAIL vars. `Dockerfile.worker` pinned to `node:25.6.0-slim` (matching `Dockerfile.dev`) so `npm ci` reads the same lockfile tree; `ffmpeg` installed via apt. `Dockerfile.dev` also installs `ffmpeg` so the worker integration test runs in the `nestjs-api` test container. Verified: `docker compose up -d video-worker` boots cleanly (all Nest modules initialized, no crash) and stays running.
 
 ### SI-03.7 — Video Metadata, Streaming, and Download Endpoints
 - **Status:** completed

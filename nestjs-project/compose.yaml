@@ -105,8 +105,6 @@ services:
       - STORAGE_SECRET_ACCESS_KEY=minioadmin123
       - STORAGE_BUCKET=streamtube-videos
       - STORAGE_PUBLIC_ENDPOINT=http://localhost:9000
-    volumes:
-      - .:/home/node/app
 
 volumes:
   minio_data:

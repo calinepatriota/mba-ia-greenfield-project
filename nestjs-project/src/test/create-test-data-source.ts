@@ -5,8 +5,13 @@ interface TestDataSourceOptions {
   migrations?: (new () => MigrationInterface)[];
 }
 
+type EntityClassOrSchema =
+  | string
+  | (new (...args: any[]) => object)
+  | EntitySchema<any>;
+
 export function createTestDataSource(
-  entities: (Function | string | EntitySchema<any>)[],
+  entities: EntityClassOrSchema[],
   options: TestDataSourceOptions = {},
 ): DataSource {
   const { synchronize = true, migrations } = options;

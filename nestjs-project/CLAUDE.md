@@ -181,7 +181,9 @@ draft → processing → ready
 
 **Storage pattern:** client uploads directly to MinIO via a presigned PUT URL (7 200 s TTL). The API never receives the raw video bytes. After the upload, the client calls `/upload-complete`, which verifies the object exists in MinIO, transitions status to `processing`, and enqueues a BullMQ job.
 
-**Worker (`src/worker/`):** standalone NestJS app (`worker` entry in `nest-cli.json`). Consumes `video-processing` queue. For each job: downloads original from MinIO → extracts metadata with `ffprobe` → generates thumbnail with `ffmpeg` → uploads thumbnail back to MinIO → marks video `ready`. On final retry failure, marks video `error`.
+**Worker (`src/worker/`):** standalone NestJS app (`src/worker/main.ts`, built to `dist/worker/main.js`, run by `Dockerfile.worker`). Consumes `video-processing` queue. For each job: downloads original from MinIO → extracts metadata with `ffprobe` → generates thumbnail with `ffmpeg` → uploads thumbnail back to MinIO → marks video `ready`. On final retry failure, marks video `error`.
+
+**Worker config & boot:** the worker validates a dedicated schema `src/config/worker-env.validation.ts` (DB/QUEUE/STORAGE only) — it must NOT reuse the full API `env.validation.ts`, which requires JWT/MAIL vars the worker never receives (that would crash it on boot). `WorkerModule`'s `TypeOrmModule` registers `entities: [Video, Channel, User]` (the whole relation graph, or TypeORM cannot build `Video#channel` metadata). `Dockerfile.worker` uses the same Node version as `Dockerfile.dev` (`node:25.6.0-slim`) so `npm ci` resolves the committed lockfile identically, then installs `ffmpeg` via apt. `Dockerfile.dev` also installs `ffmpeg` so `video.processor.integration-spec.ts` can run the real pipeline inside the `nestjs-api` test container.
 
 **BullMQ queue name:** `video-processing`. Job name: `process`. Retry policy: 3 attempts, exponential backoff (5 000 ms base).
 
