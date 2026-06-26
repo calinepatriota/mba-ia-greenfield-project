@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, QueryFailedError } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { appendRandomSuffix, sanitizeNickname } from './nickname.util';
 import { Channel } from './entities/channel.entity';
+import { ChannelNotFoundException } from './exceptions/channel-not-found.exception';
 
 const PG_UNIQUE_VIOLATION = '23505';
 const NICKNAME_COLUMN = 'nickname';
@@ -19,7 +21,11 @@ function isPgUniqueViolationOnColumn(err: unknown, column: string): boolean {
 
 @Injectable()
 export class ChannelsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @InjectRepository(Channel)
+    private readonly channelRepository: Repository<Channel>,
+  ) {}
 
   async createChannel(userId: string, email: string): Promise<Channel> {
     const baseNickname = sanitizeNickname(email.split('@')[0]);
@@ -58,5 +64,15 @@ export class ChannelsService {
         'Nickname conflict could not be resolved after max retries',
       );
     });
+  }
+
+  async findChannelByUserId(userId: string): Promise<Channel> {
+    const channel = await this.channelRepository.findOne({
+      where: { user_id: userId },
+    });
+    if (!channel) {
+      throw new ChannelNotFoundException();
+    }
+    return channel;
   }
 }

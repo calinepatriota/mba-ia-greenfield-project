@@ -3,33 +3,20 @@ import { Module } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
-import { StorageModule } from './storage/storage.module';
-import { VideosModule } from './videos/videos.module';
-import appConfig from './config/app.config';
-import authConfig from './config/auth.config';
-import databaseConfig from './config/database.config';
-import mailConfig from './config/mail.config';
-import queueConfig from './config/queue.config';
-import storageConfig from './config/storage.config';
-import swaggerConfig from './config/swagger.config';
-import { envValidationSchema } from './config/env.validation';
+import { StorageModule } from '../storage/storage.module';
+import { Video } from '../videos/entities/video.entity';
+import appConfig from '../config/app.config';
+import databaseConfig from '../config/database.config';
+import queueConfig from '../config/queue.config';
+import storageConfig from '../config/storage.config';
+import { envValidationSchema } from '../config/env.validation';
+import { VideoProcessor } from './video.processor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [
-        appConfig,
-        authConfig,
-        databaseConfig,
-        mailConfig,
-        queueConfig,
-        storageConfig,
-        swaggerConfig,
-      ],
+      load: [appConfig, databaseConfig, queueConfig, storageConfig],
       validationSchema: envValidationSchema,
       validationOptions: { allowUnknown: true, abortEarly: false },
     }),
@@ -43,7 +30,7 @@ import { envValidationSchema } from './config/env.validation';
         username: dbConfig.username,
         password: dbConfig.password,
         database: dbConfig.name,
-        autoLoadEntities: true,
+        entities: [Video],
         synchronize: false,
       }),
     }),
@@ -57,11 +44,10 @@ import { envValidationSchema } from './config/env.validation';
         },
       }),
     }),
-    AuthModule,
+    BullModule.registerQueue({ name: 'video-processing' }),
     StorageModule,
-    VideosModule,
+    TypeOrmModule.forFeature([Video]),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [VideoProcessor],
 })
-export class AppModule {}
+export class WorkerModule {}
